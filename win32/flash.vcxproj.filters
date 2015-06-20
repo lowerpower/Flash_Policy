@@ -30,6 +30,12 @@
     <ClCompile Include="..\src\arch.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\yevent.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\file_config.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\arch.h">
@@ -51,6 +57,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\flash_policy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\yevent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\file_config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

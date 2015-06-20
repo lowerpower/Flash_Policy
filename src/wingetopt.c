@@ -72,5 +72,10 @@ getopt(int argc, char **argv, char *opts)
 	return(c);
 }
 
+void
+reset_getopt(void)
+{
+    optind = 1;
+}
 #endif  /* __GNUC__ */
 

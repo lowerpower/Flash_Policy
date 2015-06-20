@@ -3,8 +3,20 @@
  *! \file Flash_Policy.c
  *  \brief Flash Policy Server
  *
- *  Simple Flash Policy server, specify policy on file, auto reload of
- *  Policy file while running.
+ *  Simple Flash Policy server, simple, reliable and suitable for most 
+ *  applications.  Policy is specify in a file, auto reload of Policy file 
+ *  while running without reload.
+ *
+ * The operation is very simple, accepts TCP connections on a socket,
+ * default 843, and responds with the policy file and immeadatly closes
+ * socket.  No data is read from client.
+ *
+ * This is a single thread, select based, non blocking server. Should
+ * easly handle hunderes of connections per second.
+ *
+ * Statistics file can be optionally written at an interval.
+ *
+ * This server can be run as a daemon or an application.
  *																			
  *---------------------------------------------------------------------------
  * Version                                                                  -
@@ -17,7 +29,10 @@
  *---------------------------------------------------------------------------
  *
  * Notes:
- * 
+ * User definable policy should be here or specified on command line:
+ *
+ * Unix:             /usr/local/etc/flashpolicy.xml
+ * Windows           c:/flash/flashpolicy.xml
  *
  *
  *
@@ -30,6 +45,7 @@
 #include "arch.h"
 #include "yselect.h"
 #include "daemonize.h"
+#include "file_config.h"
 #include "debug.h"
 
 
@@ -45,8 +61,11 @@ const char default_policy[] = "<?xml version=\"1.0\"?>\n"
 "<!DOCTYPE cross-domain-policy SYSTEM \"/xml/dtds/cross-domain-policy.dtd\">\n"
 "<!-- Policy file for xmlsocket://socks.example.com -->\n"
 "<cross-domain-policy>\n"
-"<!-- This is an empty file, please specify a policy file -->\n"
-"</cross-domain-policy>\n";
+"   <site-control permitted-cross-domain-policies=\"master-only\"/>\n"
+"   <allow-access-from domain=\"*.yoics.net\" to-ports=\"30000-40000\" />\n"
+"</cross-domain-policy>";
+
+
 
 //
 // network_init()-
@@ -69,7 +88,33 @@ int network_init(void)
 #endif
 return(0);
 }
+int
+set_sock_nonblock(SOCKET lsock)
+{
+	int ret;
+#if defined(WIN32) || defined(WINCE)
+	u_long	flags;
 
+	flags=0x1;
+	ret=ioctlsocket ( lsock, FIONBIO, (u_long FAR *) &flags);
+#endif
+
+#if defined (__ECOS)
+    int tr = 1;
+    ret=ioctl(lsock, FIONBIO, &tr); 
+#endif
+
+#if defined(LINUX) || defined(MACOSX) || defined(IOS)
+
+	int flags;
+
+	flags = fcntl(lsock, F_GETFL, 0);
+	ret=fcntl(lsock, F_SETFL, O_NONBLOCK | flags);
+
+#endif
+
+	return(ret);
+}
 
 //
 // Update the statistics file, should only be called periodically at most every 15 seconds, more likely every 1-5 min for MRTG or similar.
@@ -122,6 +167,11 @@ init_server(POLICY *policy)
         policy->listen_soc=0;
 		return(-1);
 	}
+    //
+    // If your needing very high load, increase the proxy_listen_backlog value, this will 
+    // let more connections stack up and may help with a loaded server.  The default
+    // value of 10 should be more than enough for most servers.
+    //
 	ret=listen(policy->listen_soc,POLICY_LISTEN_BACKLOG);
 	if(-1==ret)
 	{
@@ -133,26 +183,113 @@ init_server(POLICY *policy)
 
 	DEBUG1("listener started\n");
 
+    // Add the listen socket to the select map
     Y_Set_Select_rx(policy->listen_soc);
+
+    // Non Block
+    set_sock_nonblock(policy->listen_soc);
 
     return(1);
 
 }
 
+int
+policy_load_policy_file(POLICY *policy,int flen)
+{
+    int     tret,ret=-1;
+    char    *tbuffer;
+    FILE    *fp;
+
+
+    while(flen>0)
+    {
+	    if(NULL == (fp = fopen( (char *) policy->policy_file, "r")) )
+	    {
+		    yprintf("cannot open %s config file.\n",policy->config_file);
+	        break;
+        }
+	    else
+	    {
+            // Alloc buffer and read file into buffer
+            tbuffer=(char*)malloc(flen+1);
+            if(0==tbuffer)
+            {
+                DEBUG1("failed to malloc %d bytes\n",flen+1);
+                ret=-2;
+            }
+            //
+            // Read file to buffer.
+            //
+            tret=fread(tbuffer,1,flen,fp);
+            if((tret)<1)
+            {
+                free(tbuffer);
+                break;
+            }
+            tbuffer[tret]=0;
+
+            // OK we got a good
+            if(policy->policy)
+                free(policy->policy);
+            policy->policy=tbuffer;
+            ret=0;
+        }
+        // ALways break.
+        break;
+    }
+    // close the file if open
+    if(fp)
+        fclose(fp);
+
+    return(ret);
+}
+
+//
+// This checks if the policy file needs to be reloaded, and if so reloads it.
+// This function just checks the modify time attribute on the file against what
+// is stored, and if there is a change reloads it.
+//
+int
+policy_reload_policy_file(POLICY *policy)
+{
+	time_t old_time=policy->policy_file_info.st_mtime;
+
+    //policy->auto_reload;
+
+	if(-1!=stat(policy->policy_file,&policy->policy_file_info))
+	{		
+		// Must use difftime to be completly portable
+		if( (difftime(old_time, policy->policy_file_info.st_mtime)) || (0==old_time) )
+		{
+			// File has changed, reload
+            DEBUG1("Reload Policy File\n");
+			if(policy->verbose) printf("Reload Policy File\n");
+			return(policy_load_policy_file(policy,policy->policy_file_info.st_size));
+		}
+	}
+	else
+	{
+		if(policy->verbose) printf("Failed stat %s\n",policy->policy_file);
+	}
+	return(0);
+}
 
 
 int
 policy_rx(POLICY *policy)
 {
     SOCKET				ts;
+    int                 count=0;
     int                 ret;
     int                 len;
 	struct sockaddr_in	client;				/* Information about the client */
+    char                tbuf[10001];
 
     // Check for anything ready, wait for 1 second
     ret=Y_Select(1000);
     if(ret>0)
     {
+        //if(policy->verbose) printf("selected\n");
         // Check to see if we can accept on the socket
         if(Y_Is_Select(policy->listen_soc))
         {   
@@ -162,14 +299,32 @@ policy_rx(POLICY *policy)
                 memset((void *)&client, '\0', sizeof(struct sockaddr_in));
                 len=sizeof(struct sockaddr);
  			    ts=accept(policy->listen_soc,(struct sockaddr *)&client, (socklen_t *) &len);
+
+
 			    if(-1!=ts)
 			    {
+                    //set_sock_nonblock(ts);
+                    //
+                    // Dummy Read?  Cannot block
+                    //ret=recv(ts,tbuf,1000,0);
                     // Accepted, just dump the policy file and close the socket
-				    ret=send(ts,default_policy,strlen(default_policy),0);
+                    //sprintf(tbuf,"HTTP/1.0 200 OK\r\nConnection: close\r\n\r\n%s",policy->policy);
+				    //ret=send(ts,tbuf,strlen(tbuf),0);
+				    ret=send(ts,policy->policy,strlen(policy->policy),0);
 				    // Close the socket
 				    closesocket(ts);
                 }
-            }while(-1!=ts);
+                else
+                {
+                    //printf("out\n");
+                }
+                count++;
+            }while((-1!=ts) && (count<100));            /*we only handle 100 accepts before checking our other stuff, this can be optimized */
+        }
+        else
+        {
+            DEBUG1("error on select not found\n");
+if(policy->verbose) printf("not selected\n");
         }
     }
     return(-1);
@@ -237,11 +392,13 @@ void usage(int argc, char **argv)
 {
   startup_banner();
 
-  printf("usage: %s [-h] [-v(erbose)] [-d][pid file] [-f config_file] [-c control_port] [-u dns_udp_port] [-t dns_tcp_port] \n",argv[0]);
+  printf("usage: %s [-h] [-v(erbose)] [-d][pid file] [-f config_file] [-p policy_file] [-a(uto reload)] [-l listen_tcp_port] \n",argv[0]);
   printf("\t -h this output.\n");
   printf("\t -v console debug output.\n");
   printf("\t -d runs the program as a daemon with optional pid file.\n");
   printf("\t -f specify a config file.\n");
+  printf("\t -p specify a policy file.\n");
+  printf("\t -a interval_in_seconds (0=off)\n");
   printf("\t -l Listen port (defaults to 843)\n");
   exit(2);
 }
@@ -276,7 +433,7 @@ pid_t			pid, sid;
     policy.verbose=0;
     policy.Bind_IP.ip32=0;
     //
-    // Set default data files
+    // Set default policy
     //
     strcpy(policy.policy_file,POLICY_DEFAULT_FILE);
 
@@ -286,7 +443,6 @@ pid_t			pid, sid;
     //
 	strcpy(policy.stats_file,POLICY_DEFAULT_STATISTICS_FILE);
     policy.stats_interval=POLICY_DEFAULT_STATISTICS_INTERVAL;
-
 	//
 	// Banner
 	startup_banner();
@@ -329,17 +485,53 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
 #endif
 #endif
 #endif
+    //
+    // Look just for a config file first
+    //
+	while ((c = getopt(argc, argv, "p:c:u:t:l:a:dvh")) != EOF)
+	{
+    	switch (c) 
+		{
+    	case 0:
+    		break;
+    	case 'f':
+    		//Policy_file
+			strncpy(policy.policy_file,optarg,MAX_PATH-1);
+    		break;
+    	default:
+			break;
+    	}
+    }
+    optind = 1;
+    //
+    // Load Config File if set
+    //
+	if(strlen(policy.config_file))
+	{
+		if(read_config(&policy))
+		{
+			if(policy.verbose) printf("Config File Loaded\n");
+		}
+		else
+		{
+			if(policy.verbose) printf("Config File Failed to Load, using defaults.\n");
+		}
+   	}
 
 	//
+	// Override with command line, after config file is loaded
 	//
-	//
-	while ((c = getopt(argc, argv, "f:c:u:t:l:dvh")) != EOF)
+	while ((c = getopt(argc, argv, "p:c:u:t:l:a:dvh")) != EOF)
 	{
     		switch (c) 
 			{
     		case 0:
     			break;
-    		case 'f':
+    		case 'l':
+    		    //Policy_file
+                policy.listen_port=atoi(optarg);
+    		    break;
+    		case 'p':
     		    //Policy_file
 				strncpy(policy.policy_file,optarg,MAX_PATH-1);
     		    break;
@@ -348,6 +540,9 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
 				printf("Starting up as daemon\n");
 				strncpy(policy.pidfile,optarg,MAX_PATH-1);
                 global_flag|=GF_DAEMON;
+    			break;
+    		case 'a':
+    			policy.auto_reload=atoi(optarg);;
     			break;
     		case 'v':
     			policy.verbose=1;
@@ -366,20 +561,14 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
 	//if (argc != 1)
 	//	usage (argc,argv);
 
-	// Read File Config
-	if(strlen(policy.config_file))
-	{
-		/*if(read_file_config(policy.config_file, &policy))
-		{
-			if(policy.verbose) printf("Config File Loaded\n");
-		}
-		else
-		{
-			if(policy.verbose) printf("Config File Failed to Load, using defaults.\n");
-		}
-        */
-	}
+	// Read Policy File
+    if(strlen(policy.policy_file))
+        policy_reload_policy_file(&policy);
+    else
+    {
+        // use default policy
 
+    }
 
     // Bind TCP
     if(-1==init_server(&policy))
@@ -466,22 +655,32 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
 	{
 		// Everything fun happens in rx_packet, this is the server
 		policy_rx(&policy);
-		//
-		// Do Checks and write statistics every 60 seconds, we also check for reload of policy file
-		//
-		if((second_count()-timestamp)> policy.stats_interval)
-		{
-			//if(dns.verbose) printf("Try Reload\n");
-			timestamp=second_count();	
-			//
-			// Write out statistics
-			//
-			write_statistics(&policy);
-            //
-            // Check Policy File
-            //
-			fflush(stdout);	
-		}
+        //
+        // Check if we need to check policy file for reload
+        //
+        if(policy.auto_reload)
+        {
+            if((U32)(second_count()-policy.policy_file_timestamp) > policy.auto_reload)
+            {
+	if(policy.verbose) printf("1\n");	
+                policy.policy_file_timestamp=second_count();	
+                policy_reload_policy_file(&policy);
+            }
+        }
+        //
+        if(policy.stats_file[0])
+        {
+		    if((U32)(second_count()-policy.stats_file_timestamp) > policy.stats_interval)
+		    {
+if(policy.verbose) printf("Try Reload\n");
+			    policy.stats_file_timestamp=second_count();	
+			    //
+			    // Write out statistics
+			    //
+			    write_statistics(&policy);
+			    fflush(stdout);	
+		    }
+        }
 	}
 
 

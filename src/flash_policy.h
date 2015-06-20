@@ -48,16 +48,26 @@ typedef struct policy_config_
 	IPADDR		Bind_IP;
     U16         listen_port;
 	SOCKET		listen_soc;
+
     char        config_file[MAX_PATH];
+    struct stat config_file_info;
     //
 	int			verbose;
 	int			log_level;
-	int			auto_reload;
+    //
+    // Policy
+    char        *policy;
+    //
+    // Policy File Info
+	U32 		auto_reload;
 	char        policy_file[MAX_PATH];
+    U32         policy_file_timestamp;
+    struct stat policy_file_info;
     
     // Stats
 	char        stats_file[MAX_PATH];
-    unsigned int stats_interval;
+    U32         stats_interval;
+    U32         stats_file_timestamp;
     long		requests;
 
 
