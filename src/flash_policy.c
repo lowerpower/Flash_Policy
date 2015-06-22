@@ -116,6 +116,73 @@ set_sock_nonblock(SOCKET lsock)
 	return(ret);
 }
 
+int
+set_sock_block(SOCKET lsock)
+{
+	int ret;
+#if defined(WIN32) || defined(WINCE)
+	u_long	flags;
+
+	flags=0x0;
+	ret=ioctlsocket ( lsock, FIONBIO, (u_long FAR *) &flags);
+#endif
+
+#if defined (__ECOS)
+    int tr = 0;
+    ret=ioctl(lsock, FIONBIO, &tr); 
+#endif
+
+#if defined(LINUX) || defined(MACOSX) || defined(IOS)
+
+	int flags;
+
+	flags = fcntl(lsock, F_GETFL, 0);
+	ret=fcntl(lsock, F_SETFL, ~O_NONBLOCK & flags);
+
+#endif
+
+	return(ret);
+}
+
+int
+set_sock_send_timeout(SOCKET lsock, int secs)
+{
+	int ret=-1;
+	struct timeval tv;
+
+#if defined(WINDOWS)
+	int timeout=secs*100;
+	ret = setsockopt(lsock,SOL_SOCKET ,SO_SNDTIMEO,(char *)&timeout,sizeof(timeout));
+#else
+	tv.tv_sec = secs;
+	tv.tv_usec = 0;
+	if ( (ret=setsockopt(lsock, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv, sizeof(tv)) ) < 0)
+	{
+		
+	}
+#endif
+	return(ret);
+}
+
+
+//setsockopt( sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv);
+int
+set_sock_recv_timeout(SOCKET lsock, int secs)
+{
+	int ret=-1;
+	struct timeval tv;
+
+	tv.tv_sec = secs;
+	tv.tv_usec = 0;
+	if ( (ret=setsockopt(lsock, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(tv)) ) < 0)
+	{
+		
+	}
+    DEBUG1("set recv timeout ret %d\n",ret);
+	return(ret);
+}
+
+
 //
 // Update the statistics file, should only be called periodically at most every 15 seconds, more likely every 1-5 min for MRTG or similar.
 //
@@ -282,6 +349,7 @@ policy_rx(POLICY *policy)
     int                 count=0;
     int                 ret;
     int                 len;
+    U16                 start;
 	struct sockaddr_in	client;				/* Information about the client */
     char                tbuf[10001];
 
@@ -303,14 +371,20 @@ policy_rx(POLICY *policy)
 
 			    if(-1!=ts)
 			    {
-                    //set_sock_nonblock(ts);
+                    set_sock_block(ts);
+                    set_sock_send_timeout(ts, 1);
+                    // set_sock_nonblock(ts);
+#if defined(WEB_TEST)                    
+                    set_sock_recv_timeout(ts, 1000);
                     //
                     // Dummy Read?  Cannot block
-                    //ret=recv(ts,tbuf,1000,0);
+                    ret=recv(ts,tbuf,1000,0);
                     // Accepted, just dump the policy file and close the socket
-                    //sprintf(tbuf,"HTTP/1.0 200 OK\r\nConnection: close\r\n\r\n%s",policy->policy);
-				    //ret=send(ts,tbuf,strlen(tbuf),0);
-				    ret=send(ts,policy->policy,strlen(policy->policy),0);
+                    sprintf(tbuf,"HTTP/1.0 200 OK\r\nConnection: Close\r\n\r\n%s",policy->policy);
+				    ret=send(ts,tbuf,strlen(tbuf),0);				  
+#endif
+
+                    ret=send(ts,policy->policy,strlen(policy->policy),0);
 				    // Close the socket
 				    closesocket(ts);
                 }

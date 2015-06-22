@@ -8,7 +8,7 @@
 
 
 int readln_from_a_file(FILE *fp, char *line, int size);
-
+int get_last_error(void);
 
 /*! \fn U32 second_count(void);
 

@@ -54,7 +54,16 @@ readln_from_a_file(FILE *fp, char *line, int size)
     return( 1 );
 }
 
+int get_last_error()
+{
+#if defined(WIN32) || defined(WINCE)
+	return(WSAGetLastError());
+#endif
 
+#if defined(LINUX) || defined(MACOSX) || defined(__ECOS) || defined(IOS)
+	return(errno);
+#endif
+}
 
 
 //

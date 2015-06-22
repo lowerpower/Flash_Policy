@@ -11,6 +11,8 @@
 #include "config.h"
 #include "mytypes.h"
 
+// Uncomment this line so you can use a web performance test like ab to test server performance (makes this server act like a webserver)
+//#define WEB_TEST 1
 
 #if defined(WIN32)
 #define POLICY_DEFAULT_FILE			"c:/flash/policy.txt"
