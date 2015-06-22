@@ -9,6 +9,7 @@ Desktop.ini
 $RECYCLE.BIN/
 Debug
 Release
+*.sdf
 
 # Windows Installer files
 *.cab
