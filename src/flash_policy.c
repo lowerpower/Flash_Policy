@@ -656,33 +656,13 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
     //
 	if(global_flag&GF_DAEMON)
 	{
-            // Daemonize this
-            daemonize(policy.pidfile,0,0,0,0,0,0);
-            // Setup logging
-			openlog("chat_server",LOG_PID|LOG_CONS,LOG_USER);
-			syslog(LOG_INFO,"Flash Policy Server built "__DATE__ " at " __TIME__ "\n");
-			syslog(LOG_INFO,"   Version " VERSION " - (c)2014 Mycal.net\n");
-			syslog(LOG_INFO,"Starting up as daemon\n");
-	       
-
-            // create pid file
-			if(policy.pidfile)
-			{
-				FILE *fd;
-				// pidfile creation specified
-				fd=fopen(policy.pidfile,"w");
-				if(fd)
-				{
-					fprintf(fd,"%d",getpid());
-					fclose(fd);
-					syslog(LOG_INFO,"Creating pidfile %s with PID %d\n",policy.pidfile,getpid());
-				}
-				else
-				{
-					syslog(LOG_ERR,"Failed creating pidfile %s with PID %d -errno %d\n",policy.pidfile,getpid(),errno);	
-					exit(0);
-				}
-			}
+        // Daemonize this
+        daemonize(policy.pidfile,0,0,0,0,0,0);
+        // Setup logging
+		openlog("chat_server",LOG_PID|LOG_CONS,LOG_USER);
+		syslog(LOG_INFO,"Flash Policy Server built "__DATE__ " at " __TIME__ "\n");
+		syslog(LOG_INFO,"   Version " VERSION " - (c)2015 Mycal.net\n");
+		syslog(LOG_INFO,"Starting up as daemon\n");	       
     }
 #endif
 

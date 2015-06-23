@@ -73,5 +73,14 @@
     <None Include="..\sample_files\flash_policyd">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="..\sample_files\policy.txt">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\sample_files\install.sh">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\sample_files\pconfig.txt">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

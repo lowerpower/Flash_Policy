@@ -97,6 +97,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\sample_files\flash_policyd" />
+    <None Include="..\sample_files\install.sh" />
+    <None Include="..\sample_files\pconfig.txt" />
+    <None Include="..\sample_files\policy.txt" />
     <None Include="..\src\makefile" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
