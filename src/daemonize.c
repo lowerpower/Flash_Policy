@@ -64,7 +64,7 @@ daemonize(char *pidfile, char *user, char *dir, char* path, char* outfile, char*
     {
         if ((pidfd = fopen(pidfile, "w")) == NULL) {
                 fprintf(stderr, "Failed to open pid file %s: %s\n",
-                                PIDFILE, strerror(errno));
+                                pidfile, strerror(errno));
         }
     }
 
