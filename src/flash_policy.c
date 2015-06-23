@@ -686,37 +686,7 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
     }
 #endif
 
-	//------------------------------------------------------------------
-	// Initialize error handling and signals
-	//------------------------------------------------------------------
-#if defined(WIN32) 
-if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
-{
-    // unable to install handler... 
-    // display message to the user
-    printf("!!Error - Unable to install control handler!\n");
-    return -1;
-}
-#else 
-	if (signal (SIGINT, termination_handler) == SIG_IGN)
-		signal (SIGINT, SIG_IGN);
-	if (signal (SIGTERM, termination_handler) == SIG_IGN)
-		signal (SIGTERM, SIG_IGN);
-	if (signal (SIGILL , termination_handler) == SIG_IGN)
-		signal (SIGILL , SIG_IGN);
-	if (signal (SIGFPE , termination_handler) == SIG_IGN)
-		signal (SIGFPE , SIG_IGN);
-	if (signal (SIGSEGV , termination_handler) == SIG_IGN)
-		signal (SIGSEGV , SIG_IGN);
-	if (signal (SIGXCPU , termination_handler) == SIG_IGN)
-		signal (SIGXCPU , SIG_IGN);
-	if (signal (SIGXFSZ , termination_handler) == SIG_IGN)
-		signal (SIGXFSZ , SIG_IGN);
-#endif
-
-
-
-    //
+	//
 	// Main Loop Forever, we should exit on HUP or program exit, timeout every 1s if no packet to handle housekeeping
     //
 	if(policy.verbose) printf("Starting Flash Policy Server\n");	
@@ -733,7 +703,6 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
         {
             if((U32)(second_count()-policy.policy_file_timestamp) > policy.auto_reload)
             {
-	if(policy.verbose) printf("1\n");	
                 policy.policy_file_timestamp=second_count();	
                 policy_reload_policy_file(&policy);
             }
@@ -743,7 +712,6 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
         {
 		    if((U32)(second_count()-policy.stats_file_timestamp) > policy.stats_interval)
 		    {
-if(policy.verbose) printf("Try Reload\n");
 			    policy.stats_file_timestamp=second_count();	
 			    //
 			    // Write out statistics

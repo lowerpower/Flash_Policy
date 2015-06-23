@@ -48,20 +48,20 @@ daemonize(char* user, char *dir, char* path, char* outfile, char* errfile, char*
     struct passwd *pw;
 
 
-    if(user)
-    {
-        if ((pw = getpwnam(user)) == NULL) {
-                fprintf(stderr, "getpwnam(%s) failed: %s\n",
-                                user, strerror(errno));
-                exit(EXIT_FAILURE);
-        }
-    }
 
     // Fill in defaults if not specified
     if(!path) { path="/"; }
+    if(!dir) { dir="/"; }
     if(!infile) { infile="/dev/null"; }
     if(!outfile) { outfile="/dev/null"; }
     if(!errfile) { errfile="/dev/null"; }
+    if(!user) { user="nobody"; }
+
+    if ((pw = getpwnam(user)) == NULL) {
+        fprintf(stderr, "getpwnam(%s) failed: %s\n",
+                user, strerror(errno));
+                exit(EXIT_FAILURE);
+    }
 
     //fork, detach from process group leader
     if( (child=fork())<0 ) { //failed fork
@@ -91,19 +91,47 @@ daemonize(char* user, char *dir, char* path, char* outfile, char* errfile, char*
 
     //new file permissions
     umask(0);
-    //change to path directory
-    ret=chdir(path);
 
-    //Close all open file descriptors
-    for( fd=sysconf(_SC_OPEN_MAX); fd>0; --fd )
-    {
-        close(fd);
-    }
 
     //reopen stdin, stdout, stderr
-    stdin=fopen(infile,"r");   //fd=0
-    stdout=fopen(outfile,"w+");  //fd=1
-    stderr=fopen(errfile,"w+");  //fd=2
+    if(!freopen(infile,"r",stdin)  ||   //fd=0
+    freopen(outfile,"w+",stdout)   ||  //fd=1
+    freopen(errfile,"w+",stderr))  {  //fd=2
+        syslog(LOG_WARNING, "close std fds %s failed: %s\n",
+            dir, strerror(errno));    
+    }
+
+
+    if (chroot(dir) < 0) {
+            syslog(LOG_ERR, "chroot(%s) failed: %s\n",
+                            dir, strerror(errno));
+            exit(EXIT_FAILURE);
+    }
+
+    //change to path directory
+    if (chdir(path) < 0) {
+            syslog(LOG_ERR, "chdir(\"/\") failed: %s\n",
+                            strerror(errno));
+            exit(EXIT_FAILURE);
+    }
+
+    if (setgroups(1, &pw->pw_gid) < 0) {
+            syslog(LOG_ERR, "setgroups() failed: %s\n",
+                            strerror(errno));
+            exit(EXIT_FAILURE);
+    }
+
+    if (setgid(pw->pw_gid)) {
+            syslog(LOG_ERR, "setgid %i (user=%s) failed: %s\n",
+                            pw->pw_gid, user, strerror(errno));
+            exit(EXIT_FAILURE);
+    }
+
+    if (setuid(pw->pw_uid)) {
+            syslog(LOG_ERR, "setuid %i (user=%s) failed: %s\n",
+                            pw->pw_uid, user, strerror(errno));
+            exit(EXIT_FAILURE);
+    }
 
     ret=1;
     return(ret);
