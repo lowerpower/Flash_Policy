@@ -70,8 +70,10 @@ typedef struct policy_config_
 	char        stats_file[MAX_PATH];
     U32         stats_interval;
     U32         stats_file_timestamp;
+    // Stat Values
     long		requests;
-
+    long        accept_err;
+    long		tx_err;
 
 	char		pidfile[MAX_PATH];
 }POLICY;

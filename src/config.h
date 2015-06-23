@@ -110,6 +110,7 @@
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <sys/select.h>
+#include <time.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>

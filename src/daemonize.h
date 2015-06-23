@@ -11,7 +11,8 @@
 #else
 
 
-int daemonize(char* path, char* outfile, char* errfile, char* infile );
+//int daemonize(char* path, char* outfile, char* errfile, char* infile );
+int daemonize(char* user, char *dir, char* path, char* outfile, char* errfile, char* infile );
 
 #endif
 

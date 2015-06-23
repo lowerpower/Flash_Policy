@@ -31,7 +31,7 @@ LIBS_INC        =
 DEPENDALL	= arch.h config.h mytypes.h daemonize.h debug.h flash_policy.h yselect.h
 
 #Objects
-OBJ	 = flash_policy.c daemonize.c yselect.c arch.c
+OBJ	 = flash_policy.o daemonize.o yselect.o arch.o file_config.o
 
 $(TARGET): $(OBJ) 
 	$(CC) $(CFLAGS) $(LINKFLAGS) $(TARGET) $(OBJ) $(LIBS)

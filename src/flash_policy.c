@@ -265,7 +265,7 @@ policy_load_policy_file(POLICY *policy,int flen)
 {
     int     tret,ret=-1;
     char    *tbuffer;
-    FILE    *fp;
+    FILE    *fp=0;
 
 
     while(flen>0)
@@ -321,7 +321,6 @@ policy_reload_policy_file(POLICY *policy)
 {
 	time_t old_time=policy->policy_file_info.st_mtime;
 
-    //policy->auto_reload;
 
 	if(-1!=stat(policy->policy_file,&policy->policy_file_info))
 	{		
@@ -349,9 +348,10 @@ policy_rx(POLICY *policy)
     int                 count=0;
     int                 ret;
     int                 len;
-    U16                 start;
 	struct sockaddr_in	client;				/* Information about the client */
+#if defined(WEB_TEST)
     char                tbuf[10001];
+#endif
 
     // Check for anything ready, wait for 1 second
     ret=Y_Select(1000);
@@ -371,9 +371,9 @@ policy_rx(POLICY *policy)
 
 			    if(-1!=ts)
 			    {
+                    policy->requests++;
                     set_sock_block(ts);
                     set_sock_send_timeout(ts, 1);
-                    // set_sock_nonblock(ts);
 #if defined(WEB_TEST)                    
                     set_sock_recv_timeout(ts, 1000);
                     //
@@ -385,12 +385,14 @@ policy_rx(POLICY *policy)
 #endif
 
                     ret=send(ts,policy->policy,strlen(policy->policy),0);
+                    if(-1==ret)
+                        policy->tx_err++;
 				    // Close the socket
 				    closesocket(ts);
                 }
                 else
                 {
-                    //printf("out\n");
+                    policy->accept_err++;
                 }
                 count++;
             }while((-1!=ts) && (count<100));            /*we only handle 100 accepts before checking our other stuff, this can be optimized */
@@ -398,7 +400,6 @@ policy_rx(POLICY *policy)
         else
         {
             DEBUG1("error on select not found\n");
-if(policy->verbose) printf("not selected\n");
         }
     }
     return(-1);
@@ -480,14 +481,10 @@ void usage(int argc, char **argv)
 int main(int argc, char *argv[])
 {
 POLICY  		policy;
-int				range_len=0;
 int				c;
-U32				timestamp=second_count();
+
 
 #if defined(LINUX) || defined(MACOSX)
-/* Our process ID and Session ID */
-pid_t			pid, sid;
-
 	signal(SIGPIPE, SIG_IGN);
 #endif
 
@@ -659,7 +656,7 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
 	if(global_flag&GF_DAEMON)
 	{
             // Daemonize this
-            daemonize(0,0,0,0);
+            daemonize(0,0,0,0,0,0);
 
             // Setup logging
 			openlog("chat_server",LOG_PID|LOG_CONS,LOG_USER);
@@ -669,20 +666,20 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
 	       
 
             // create pid file
-			if(pidfile)
+			if(policy.pidfile)
 			{
 				FILE *fd;
 				// pidfile creation specified
-				fd=fopen(argv[pidfile],"w");
+				fd=fopen(policy.pidfile,"w");
 				if(fd)
 				{
 					fprintf(fd,"%d",getpid());
 					fclose(fd);
-					syslog(LOG_INFO,"Creating pidfile %s with PID %d\n",argv[pidfile],getpid());
+					syslog(LOG_INFO,"Creating pidfile %s with PID %d\n",policy.pidfile,getpid());
 				}
 				else
 				{
-					syslog(LOG_ERR,"Failed creating pidfile %s with PID %d -errno %d\n",argv[pidfile],getpid(),errno);	
+					syslog(LOG_ERR,"Failed creating pidfile %s with PID %d -errno %d\n",policy.pidfile,getpid(),errno);	
 					exit(0);
 				}
 			}

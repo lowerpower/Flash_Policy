@@ -22,12 +22,16 @@
 #include <unistd.h>   //fork(3), chdir(3), sysconf(3)
 #include <signal.h>   //signal(3)
 #include <sys/stat.h> //umask(3)
+#include <sys/types.h>
+#include <pwd.h>        // getepwname(3)
 #include <syslog.h>   //syslog(3), openlog(3), closelog(3)
+#include <string.h>
+#include <errno.h>
 #include "daemonize.h"
 
 
 
-/*! \fn int daemonize(name,path,outfile,errorfile,infile)
+/*! \fn int daemonize(user,path,outfile,errorfile,infile)
     \brief Daemonize a process
 
     \param 
@@ -36,11 +40,22 @@
 */
 
 int
-daemonize(char* path, char* outfile, char* errfile, char* infile )
+daemonize(char* user, char *dir, char* path, char* outfile, char* errfile, char* infile )
 {
     int ret;
     pid_t child;
     int fd;
+    struct passwd *pw;
+
+
+    if(user)
+    {
+        if ((pw = getpwnam(user)) == NULL) {
+                fprintf(stderr, "getpwnam(%s) failed: %s\n",
+                                user, strerror(errno));
+                exit(EXIT_FAILURE);
+        }
+    }
 
     // Fill in defaults if not specified
     if(!path) { path="/"; }

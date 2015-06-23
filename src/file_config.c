@@ -136,5 +136,5 @@ read_config(POLICY *policy)
     }
     if(fp)
         fclose(fp);
-    return(1);
+    return(ret);
 }
