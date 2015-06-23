@@ -458,7 +458,7 @@ startup_banner()
 	// Print Banner
 	//------------------------------------------------------------------
 	printf("Flash Policy Server built " __DATE__ " at " __TIME__ "\n");
-	printf("   Version " VERSION " - (c)2014 Mycal.net\n");
+	printf("   Version " VERSION " - (c)2015 Mycal.net\n");
 	fflush(stdout);	
 }
 
@@ -559,7 +559,7 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
     //
     // Look just for a config file first
     //
-	while ((c = getopt(argc, argv, "p:c:u:t:l:a:dvh")) != EOF)
+	while ((c = getopt(argc, argv, "p:c:u:t:l:a:d:vh")) != EOF)
 	{
     	switch (c) 
 		{
@@ -567,7 +567,7 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
     		break;
     	case 'f':
     		//Policy_file
-			strncpy(policy.policy_file,optarg,MAX_PATH-1);
+			strncpy(policy.config_file,optarg,MAX_PATH-1);
     		break;
     	default:
 			break;
@@ -592,7 +592,7 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
 	//
 	// Override with command line, after config file is loaded
 	//
-	while ((c = getopt(argc, argv, "p:c:u:t:l:a:dvh")) != EOF)
+	while ((c = getopt(argc, argv, "p:c:u:t:l:a:d:vh")) != EOF)
 	{
     		switch (c) 
 			{
@@ -608,8 +608,8 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
     		    break;
     		case 'd':
 				// Startup as daemon with pid file
-				printf("Starting up as daemon\n");
 				strncpy(policy.pidfile,optarg,MAX_PATH-1);
+			    printf("Starting up as daemon with pidfile %s\n",policy.pidfile);
                 global_flag|=GF_DAEMON;
     			break;
     		case 'a':
@@ -631,6 +631,7 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
 	
 	//if (argc != 1)
 	//	usage (argc,argv);
+
 
 	// Read Policy File
     if(strlen(policy.policy_file))
@@ -657,7 +658,6 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
 	{
             // Daemonize this
             daemonize(0,0,0,0,0,0);
-
             // Setup logging
 			openlog("chat_server",LOG_PID|LOG_CONS,LOG_USER);
 			syslog(LOG_INFO,"Flash Policy Server built "__DATE__ " at " __TIME__ "\n");
