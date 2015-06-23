@@ -1,0 +1,11 @@
+#
+verbose 1
+#
+policy_autoreload 30
+stats_file c:\flash\test.txt
+stats_interval 30
+#
+#
+#
+
+
