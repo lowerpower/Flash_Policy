@@ -7,3 +7,4 @@
 int read_config(POLICY *policy);
 
 #endif
+
