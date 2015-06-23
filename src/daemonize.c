@@ -23,6 +23,8 @@
 #include <signal.h>   //signal(3)
 #include <sys/stat.h> //umask(3)
 #include <sys/types.h>
+#include <unistd.h>
+#include <grp.h>
 #include <pwd.h>        // getepwname(3)
 #include <syslog.h>   //syslog(3), openlog(3), closelog(3)
 #include <string.h>
@@ -44,7 +46,6 @@ daemonize(char* user, char *dir, char* path, char* outfile, char* errfile, char*
 {
     int ret;
     pid_t child;
-    int fd;
     struct passwd *pw;
 
 

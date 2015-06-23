@@ -17,7 +17,7 @@
 core=flash_policy
 
 #Location of daemon
-prog=/usr/local/sbin/${core}
+prog=/usr/local/bin/${core}
 
 #Location of socket policy file
 policy=/etc/flash/policy.txt
