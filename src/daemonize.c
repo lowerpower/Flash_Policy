@@ -42,7 +42,7 @@
 */
 
 int
-daemonize(char *pidfile, char* user, char *dir, char* path, char* outfile, char* errfile, char* infile )
+daemonize(char *pidfile, char *user, char *dir, char* path, char* outfile, char* errfile, char* infile )
 {
     int ret;
     pid_t child;
@@ -98,7 +98,7 @@ daemonize(char *pidfile, char* user, char *dir, char* path, char* outfile, char*
     }
     if( child>0 ) { //parent
          if (pidfd != NULL) {
-            fprintf(pidfd, "%d\n", chile);
+            fprintf(pidfd, "%d\n", child);
             fclose(pidfd);
 		}
         exit(EXIT_SUCCESS);
