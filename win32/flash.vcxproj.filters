@@ -70,5 +70,8 @@
     <None Include="..\src\makefile">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="..\sample_files\flashpolicyd.txt">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

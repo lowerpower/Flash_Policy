@@ -2,7 +2,7 @@
 # makefile for flash_policy server
 #
 
-TARGET	= flash_policy
+TARGET	= flash_policyd
 
 all: $(TARGET)
 
