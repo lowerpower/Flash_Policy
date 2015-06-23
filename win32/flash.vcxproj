@@ -96,7 +96,7 @@
     <ClInclude Include="..\src\yselect.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\sample_files\flashpolicyd.txt" />
+    <None Include="..\sample_files\flash_policyd" />
     <None Include="..\src\makefile" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

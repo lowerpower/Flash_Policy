@@ -42,11 +42,12 @@
 */
 
 int
-daemonize(char* user, char *dir, char* path, char* outfile, char* errfile, char* infile )
+daemonize(char *pidfile, char* user, char *dir, char* path, char* outfile, char* errfile, char* infile )
 {
     int ret;
     pid_t child;
     struct passwd *pw;
+	FILE *pidfd=NULL;
 
 
 
@@ -57,6 +58,15 @@ daemonize(char* user, char *dir, char* path, char* outfile, char* errfile, char*
     if(!outfile) { outfile="/dev/null"; }
     if(!errfile) { errfile="/dev/null"; }
     if(!user) { user="nobody"; }
+
+    //
+    if(pidfile)
+    {
+        if ((pidfd = fopen(pidfile, "w")) == NULL) {
+                fprintf(stderr, "Failed to open pid file %s: %s\n",
+                                PIDFILE, strerror(errno));
+        }
+    }
 
     if ((pw = getpwnam(user)) == NULL) {
         fprintf(stderr, "getpwnam(%s) failed: %s\n",
@@ -87,6 +97,10 @@ daemonize(char* user, char *dir, char* path, char* outfile, char* errfile, char*
         exit(EXIT_FAILURE);
     }
     if( child>0 ) { //parent
+         if (pidfd != NULL) {
+            fprintf(pidfd, "%d\n", chile);
+            fclose(pidfd);
+		}
         exit(EXIT_SUCCESS);
     }
 

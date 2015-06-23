@@ -14,7 +14,7 @@
 #####################
 #BEGIN CONFIG SECTION
 
-core=flash_policy
+core=flash_policyd
 
 #Location of daemon
 prog=/usr/local/bin/${core}
