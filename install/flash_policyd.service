@@ -1,0 +1,11 @@
+[Unit]
+Description=Job that runs flash policyd service
+After=network.target auditd.service
+
+[Service]
+Type=forking
+ExecStart=/usr/local/bin/flash_policyd -d /tmp/flash_policyd.pid
+
+[Install]
+WantedBy=multi-user.target
+

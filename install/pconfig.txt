@@ -1,0 +1,27 @@
+#
+# Sample Flash Policy Server Config file
+#
+# Uncomment to get verbose output
+#verbose 1
+#
+# policy_file <policy file> specify the policy file to load, defaults to
+# windows c:/flash/policy.txt
+# others /etc/flash/policy.txt
+# policy_file /etc/policy/policy.txt
+#
+# policy_autoreload [seconds] sets the number of seconds to check to see if the policy file has been changed
+# and if it has been changed it will load the new file.
+policy_autoreload 30
+# If you want a statistics file uncomment the next 2 lines, interval and location
+#stats_file \tmp\flash_stats.txt
+#stats_file c:\flash\test.txt
+#stats_interval 30
+#
+# Listen port, port to listin on (default 843)
+#listen_port 843
+#
+# Bind to a particular IP addrss, default 0.0.0.0
+# bind_ip 127.0.0.1
+#
+
+

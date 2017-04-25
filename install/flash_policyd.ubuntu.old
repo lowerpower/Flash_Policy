@@ -1,0 +1,262 @@
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides:          connectd
+# Required-Start:    $network $named $portmap $syslog $remote_fs
+# Required-Stop:     $remote_fs $syslog 
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: connectd startup
+# Description:       This file should be used to construct scripts to be
+#                    placed in /etc/init.d.
+### END INIT INFO
+
+# Author: Mike Johnson <mike@weaved>
+#
+
+# put your service name here, should be a provisioning file in /etc/weaved                   
+service_name=weavedsvn
+DESC="Connectd for SVN"
+
+VERBOSE=1
+
+# Do NOT "set -e"
+
+# PATH should only include /usr/* if it runs after the mountnfs.sh script
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+NAME=connectd
+DAEMON=/usr/local/bin/$NAME
+PIDFILE=/var/run/$service_name.pid
+SCRIPTNAME=/etc/init.d/$service_name
+
+#
+# Weaved related stuff
+WEAVED_DIR="/etc/weaved"
+#Installed Provisioing files go here (unprovisioned only)
+PROVISION_DEFAULT="$WEAVED_DIR/pfiles"
+#created devices are in availabe
+DEVICES_AVAILABLE="$WEAVED_DIR/available"
+#active devices are sym linked in active
+DEVICES_ACTIVE="$WEAVED_DIR/active"
+#
+PROVIONING_FILE=${WEAVED_DIR}/${service_name}
+#running devices have pidfiles of the same name in running
+PID_DIR=/var/run
+
+# Exit if the package is not installed
+if [ ! -x "$DAEMON" ]; then
+    echo "FAIL: $DAEMON not found"
+    exit 0
+fi
+
+# Read configuration variable file if it is present
+[ -r /etc/default/$NAME ] && . /etc/default/$NAME
+
+# Load the VERBOSE setting and other rcS variables
+. /lib/init/vars.sh
+VERBOSE=1
+
+# Define LSB log_* functions.
+# Depend on lsb-base (>= 3.2-14) to ensure that this file is present
+# and status_of_proc is working.
+. /lib/lsb/init-functions
+
+#
+# getPID pidfile
+#
+# Return PID or 0 for not found
+#
+getPID()
+{
+    ret=0
+    if [ -f $1 ]; then
+        ret="$(cat $1)"
+    fi
+    return $ret
+}
+
+#
+# isRunning pid
+# return 0 not running
+#
+isRunning()
+{
+    ret=0
+    if [ -d /proc/$pid ]; then
+        ret=1
+    fi
+    return $ret
+}
+
+#
+# killit pid
+#
+killit()
+{
+    pid=$1
+    ret=2
+    kill $pid
+    #wait for pid to die 5 seconds
+    count=0                   # Initialise a counter
+    while [ $count -lt 5 ]  
+    do
+    if [ ! -d /proc/$pid ]; then
+        #if [ "$pid" != `pidrunning $pid`  ] 
+        #then
+           ret=0
+           break;
+        fi
+        # not dead yet
+        count=`expr $count + 1`  # Increment the counter
+        if [ "$VERBOSE" != no  ]; then
+            echo "still running"
+        fi
+        sleep 1
+    done
+    return $ret
+}
+
+#
+# isDirEmpty dir
+# returns 1 for empty
+#
+isDirEmpty()
+{
+    ret=0
+    if [  ! "$(ls -A $1)" ]; then
+        ret=1
+    fi 
+    return $ret
+}
+
+#
+# Function that starts the daemon/service
+#
+do_start()
+{
+	# first check package and see if we need to update weaved software version info
+	logger [weaved.$service_name] $service_name startup
+    #
+    # see if we are already running
+    getPID $PIDFILE
+    pid="$?"
+    if [ $pid -ne 0 ]; then
+        # We have a pidfile
+        isRunning $pid
+        if [ $? -eq 1 ]; then
+            #already running
+            logger "[Weaved.$service_name] already active"
+            return 1
+        else
+            #pid file but not running, delete pidfile
+            logger "[Weaved.$service_name] pidfile exist but not running, delete pidfile" 
+            rm $PIDFILE
+        fi
+    fi
+    # 
+    # Check that we have a provisioning file for this specified service
+    
+    if [ -x "$PROVIONING_FILE" ]; then
+        logger "[Weaved.$service_name] Not started, no provisioning ($PROVIONING_FILE)file found"
+        return 2 
+    else 
+        #start daemon
+        $DAEMON -f $PROVIONING_FILE -d $PIDFILE
+        # Check Return code
+        echo "return code $?"
+
+    fi
+
+	return 0
+}
+
+#
+# Function that stops the daemon/service
+#
+do_stop()
+{
+	# Return
+	#   0 if daemon has been stopped
+	#   1 if daemon was already stopped
+	#   2 if daemon could not be stopped
+	#   other if a failure occurred
+    logger [Weaved.$service_name] connectd shutdown
+    #
+    # see if we are already running
+    getPID $PIDFILE
+    pid="$?"
+    if [ $pid -ne 0 ]; then
+        isRunning $pid
+        if [ "$?" -eq 1 ]; then
+            #running, kill it
+            killit $pid
+            RETVAL="$?"
+            rm $PIDFILE
+        else
+            #pid file but not running, delete pidfile
+            logger "[Weaved.$service_name] pidfile exist but not running, delete pidfile"
+            rm $PIDFILE
+            RETVAL=1
+        fi
+    else
+        logger "[Weaved.$service_name] Not running"
+        RETVAL=2
+    fi
+
+	return "$RETVAL"
+}
+
+#
+# Function that sends a SIGHUP to the daemon/service
+#
+do_reload() {
+	#
+	# If the daemon can reload its configuration without
+	# restarting (for example, when it is sent a SIGHUP),
+	# then implement that here.
+	#
+	#remot3_control.sh restart all
+    do_stop
+    sleep 1
+    do_start
+	return 0
+}
+
+case "$1" in
+  start)
+	[ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
+	do_start
+	case "$?" in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+	;;
+  stop)
+	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+	do_stop
+	case "$?" in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+	;;
+  status)
+	status_of_proc "$DAEMON" "$NAME" && exit 0 || exit $?
+	;;
+  restart|reload|force-reload)
+	#
+	# If do_reload() is not implemented then leave this commented out
+	# and leave 'force-reload' as an alias for 'restart'.
+	#
+	log_daemon_msg "Reloading $DESC" "$NAME"
+	do_reload
+	log_end_msg $?
+	;;
+  *)
+	#echo "Usage: $SCRIPTNAME {start|stop|restart|reload|force-reload}" >&2
+	echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
+	exit 3
+	;;
+esac
+
+:
+
+
