@@ -35,10 +35,12 @@ OBJ	 = flash_policy.o daemonize.o yselect.o arch.o file_config.o
 
 $(TARGET): $(OBJ) 
 	$(CC) $(CFLAGS) $(LINKFLAGS) $(TARGET) $(OBJ) $(LIBS)
+	cp $(TARGET) ../$(TARGET)
 
 clean:
 	-rm *.o $(MYLIB)
 	 rm -f *.map
 	 rm -f $(TARGET)
+	 rm -f ../$(TARGET)
 
 
