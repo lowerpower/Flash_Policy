@@ -6,7 +6,7 @@ This is a simple Flash Policy server.  It was written because after trying a few
  * run the installer, either redhat/centos or ubuntu 16.04
  
  ## Edit Policy
- vi /etc/flash/policy.txt    -- change for your situation.
- vi /etc/flash/pconfig.txt   -- if you need to change the defaults
+  * vi /etc/flash/policy.txt    -- change for your situation.
+  * vi /etc/flash/pconfig.txt   -- if you need to change the defaults
  
 
